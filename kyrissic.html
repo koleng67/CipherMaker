@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kyrssic — English → Kyrssic Transliterator</title>
+<style>
+:root{
+  --bg:#0f1724; --muted:#9aa4b2; --accent:#8b5cf6; --glass: rgba(255,255,255,0.03);
+  --radius:12px; --mono: ui-monospace, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+  --sans: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+body{margin:0;font-family:var(--sans);background:linear-gradient(180deg,var(--bg),#071024 140%);color:#e6eef8;padding:28px;}
+.wrap{max-width:1000px;margin:0 auto;}
+header{display:flex;align-items:center;gap:16px;margin-bottom:18px;}
+.logo{width:64px;height:64px;border-radius:14px;background:linear-gradient(135deg,#111827,#0b1220);
+  display:grid;place-items:center;font-weight:800;font-family:var(--mono);color:var(--accent);font-size:20px;}
+h1{margin:0;font-size:20px}
+p.lead{margin:4px 0 0;color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px;}
+.card{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));
+  border-radius:var(--radius);padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03);}
+textarea.input{width:100%;min-height:160px;resize:vertical;padding:12px 14px;font-size:16px;border-radius:10px;
+  background:var(--glass);color:inherit;border:1px solid rgba(255,255,255,0.02);outline:none;font-family:var(--sans);}
+pre.output{width:100%;min-height:160px;padding:12px 14px;margin:0;border-radius:10px;background:#02040a;color:#e9f0ff;
+  font-size:20px;line-height:1.5;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:system-ui;}
+.controls{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+button.btn{background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.05);
+  color:inherit;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;}
+.map-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+.map-table th,.map-table td{padding:6px;text-align:left;border-bottom:1px dashed rgba(255,255,255,0.03);}
+.symbol{font-size:18px;font-family:"Segoe UI Symbol","Noto Sans",serif;}
+.small{font-size:13px;color:var(--muted)}
+.cipher-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+.cipher-cell{display:flex;align-items:center;gap:6px;font-size:14px}
+.cipher-cell input{width:48px;padding:4px;border-radius:6px;border:1px solid rgba(255,255,255,0.1);
+  background:var(--glass);color:inherit;font-size:16px;text-align:center;}
+[contenteditable]{outline:none;}
+@media(max-width:920px){.grid{grid-template-columns:1fr;}.logo{width:56px;height:56px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="logo">KYR</div>
+  <div>
+    <h1>Kyrssic — English → Kyrssic Transliterator</h1>
+    <p class="lead">Type in English. See Kyrssic or your own cipher instantly.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <label><strong>English input</strong></label>
+    <textarea id="in" class="input" placeholder="Type something...">Hello, Kyrssic world!</textarea>
+    <div class="controls">
+      <button id="copyBtn" class="btn">Copy output</button>
+      <button id="downloadBtn" class="btn">Download .txt</button>
+      <button id="clearBtn" class="btn">Clear</button>
+    </div>
+    <label style="margin-top:12px"><strong>Output</strong></label>
+    <pre id="out" class="output"></pre>
+  </div>
+
+  <aside class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <strong>Active Mapping</strong>
+      <button id="copyMap" class="btn">Copy Mapping</button>
+    </div>
+    <table class="map-table" id="mapBody"></table>
+    <p class="small">Editable: click symbols to change mapping live. Empty symbols fallback to auto-fill if enabled.</p>
+  </aside>
+</div>
+
+<!-- Custom Cipher Card -->
+<div class="card" style="margin-top:18px">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong>Custom Cipher</strong>
+    <label><input type="checkbox" id="useCustom"> Use custom cipher</label>
+  </div>
+  <div class="controls"><label><input type="checkbox" id="autoFillToggle"> Auto-fill empty symbols with random Unicode</label></div>
+  <div><strong>Uppercase (A–Z)</strong></div>
+  <div class="cipher-grid" id="cipherGridUpper"></div>
+  <div style="margin-top:12px"><strong>Lowercase (a–z)</strong></div>
+  <div class="cipher-grid" id="cipherGridLower"></div>
+  <div class="controls">
+    <button id="saveCipher" class="btn">Save Cipher</button>
+    <button id="loadCipher" class="btn">Load Cipher</button>
+    <button id="resetCipher" class="btn">Reset</button>
+  </div>
+  <p class="small">Symbols in grids override default Kyrssic mapping. Save/load uses localStorage.</p>
+</div>
+</div>
+
+<script>
+// Default Kyrssic
+const kyrssicUpper={'A':'А','B':'Ѧ','C':'Ӿ','D':'Ҕ','E':'Ӝ','F':'Ӊ','G':'Ӷ','H':'Ӂ','I':'Ԅ','J':'Ԇ','K':'Ԉ','L':'Ԋ','M':'Ԍ','N':'Ԏ','O':'Ԑ','P':'Ԓ','Q':'Ԕ','R':'Ԗ','S':'Ԙ','T':'Ԛ','U':'Ԝ','V':'Ԟ','W':'Ԡ','X':'Ԣ','Y':'Ԥ','Z':'Ԧ'};
+const kyrssicLower={}; for(let k in kyrssicUpper) kyrssicLower[k.toLowerCase()] = kyrssicUpper[k];
+
+// DOM
+const inputEl=document.getElementById('in'), outEl=document.getElementById('out'),
+copyBtn=document.getElementById('copyBtn'), downloadBtn=document.getElementById('downloadBtn'), clearBtn=document.getElementById('clearBtn'),
+mapBody=document.getElementById('mapBody'), cipherGridUpper=document.getElementById('cipherGridUpper'),
+cipherGridLower=document.getElementById('cipherGridLower'), useCustom=document.getElementById('useCustom'),
+saveCipher=document.getElementById('saveCipher'), loadCipher=document.getElementById('loadCipher'),
+resetCipher=document.getElementById('resetCipher'), copyMap=document.getElementById('copyMap'),
+autoFillToggle=document.getElementById('autoFillToggle');
+
+const alphaUpper="ABCDEFGHIJKLMNOPQRSTUVWXYZ", alphaLower="abcdefghijklmnopqrstuvwxyz";
+const randomUnicode = ["😀","😎","💀","⚡","🪐","🌸","🔥","💫","黄","山","水","☯","★","✦","✧","☀","∞","Ω","Ψ","Δ","λ","π","∑","≈","≠","♥","♠","♣","♦","✿","❄","🌈","⚙","☢","☣","✪","☮","♨"];
+
+// Build grids
+for(let ch of alphaUpper){const cell=document.createElement('div'); cell.className="cipher-cell";
+cell.innerHTML=`<span>${ch} →</span><input id="cU_${ch}">`; cipherGridUpper.appendChild(cell);}
+for(let ch of alphaLower){const cell=document.createElement('div'); cell.className="cipher-cell";
+cell.innerHTML=`<span>${ch} →</span><input id="cL_${ch}">`; cipherGridLower.appendChild(cell);}
+
+// Random symbol helper
+function randomSymbol(){return randomUnicode[Math.floor(Math.random()*randomUnicode.length)];}
+
+// Active mapping with auto-fill and mirroring
+function getActiveMap(){
+  const map={};
+  for(let ch of alphaUpper){
+    let u=document.getElementById('cU_'+ch).value.trim();
+    let l=document.getElementById('cL_'+ch.toLowerCase()).value.trim();
+    if(!u) u=l|| (autoFillToggle.checked? randomSymbol() : kyrssicUpper[ch]||'�');
+    if(!l) l=u|| (autoFillToggle.checked? randomSymbol() : kyrssicLower[ch.toLowerCase()]||'�');
+    map[ch]=u; map[ch.toLowerCase()]=l;
+  }
+  return map;
+}
+
+// Transliterate with spaces/punctuation preserved
+function transliterate(text,map){
+  return [...text].map(ch=>/[a-zA-Z]/.test(ch)? map[ch]||'�':ch).join('');
+}
+
+// Render
+function render(){
+  const map=getActiveMap();
+  outEl.textContent=transliterate(inputEl.value,map);
+  updateMapTable(map);
+}
+
+// Sidebar sync
+function updateMapTable(map){
+  mapBody.innerHTML="";
+  for(let i=0;i<52;i++){
+    const ch=i<26?alphaUpper[i]:alphaLower[i-26];
+    const tr=document.createElement('tr'); tr.innerHTML=`<td>${ch}</td><td class="symbol" contenteditable="true">${map[ch]}</td>`;
+    mapBody.appendChild(tr);
+  }
+  document.querySelectorAll('#mapBody td.symbol').forEach((td,i)=>{
+    td.oninput=()=>{ 
+      const char=i<26? alphaUpper[i]:alphaLower[i-26];
+      const grid=document.getElementById(i<26? 'cU_'+char:'cL_'+char);
+      grid.value=td.textContent;
+      render();
+    }
+  });
+}
+
+// Buttons
+copyBtn.onclick=async()=>{await navigator.clipboard.writeText(outEl.textContent);copyBtn.textContent="Copied!";setTimeout(()=>copyBtn.textContent="Copy output",1200);}
+downloadBtn.onclick=()=>{const blob=new Blob([outEl.textContent],{type:'text/plain'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download="kyrssic.txt";a.click();URL.revokeObjectURL(a.href);}
+clearBtn.onclick=()=>{inputEl.value="";render();}
+copyMap.onclick=async()=>{ const map=getActiveMap(); let txt="Active Mapping:\n";
+for(let ch of alphaUpper) txt+=ch+" → "+map[ch]+"\n"; for(let ch of alphaLower) txt+=ch+" → "+map[ch.toLowerCase()]+"\n";
+await navigator.clipboard.writeText(txt); copyMap.textContent="Copied!"; setTimeout(()=>copyMap.textContent="Copy Mapping",1200);}
+
+// Save/Load/Reset
+saveCipher.onclick=()=>{
+  const obj={U:{},L:{}};
+  for(let ch of alphaUpper) obj.U[ch]=document.getElementById('cU_'+ch).value;
+  for(let ch of alphaLower) obj.L[ch]=document.getElementById('cL_'+ch).value;
+  localStorage.setItem('customCipher',JSON.stringify(obj));
+  alert("Cipher saved!");
+};
+loadCipher.onclick=()=>{
+  const raw=localStorage.getItem('customCipher');
+  if(!raw){alert("No cipher saved."); return;}
+  const obj=JSON.parse(raw);
+  for(let ch of alphaUpper) document.getElementById('cU_'+ch).value=obj.U[ch]||"";
+  for(let ch of alphaLower) document.getElementById('cL_'+ch).value=obj.L[ch]||"";
+  render();
+};
+resetCipher.onclick=()=>{ for(let ch of alphaUpper) document.getElementById('cU_'+ch).value="";
+for(let ch of alphaLower) document.getElementById('cL_'+ch).value=""; render();};
+
+// Grid input sync
+cipherGridUpper.addEventListener('input',()=>{if(useCustom.checked) render();});
+cipherGridLower.addEventListener('input',()=>{if(useCustom.checked) render();});
+
+// Input listener
+inputEl.addEventListener('input',render);
+useCustom.addEventListener('change',render);
+autoFillToggle.addEventListener('change',render);
+
+// Initial render
+render();
+</script>
+</body>
+</html>
